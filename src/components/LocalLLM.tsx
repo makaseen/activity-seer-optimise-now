@@ -1,16 +1,58 @@
-
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Brain, DownloadCloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLocalTracking } from '@/hooks/useLocalTracking';
+import { pipeline } from '@huggingface/transformers';
 
 type LlmStatus = 'not-installed' | 'installing' | 'ready' | 'loading' | 'error';
 
 export function LocalLLM() {
   const [status, setStatus] = useState<LlmStatus>('not-installed');
   const [progressPercent, setProgressPercent] = useState(0);
+  const [recommendations, setRecommendations] = useState<string[]>([]);
+  const { activities } = useLocalTracking();
   const { toast } = useToast();
+
+  const generateRecommendations = async () => {
+    try {
+      setStatus('loading');
+      
+      // Use a small, browser-friendly model for text generation
+      const generator = await pipeline(
+        'text-generation', 
+        'microsoft/DialoGPT-small',
+        { device: 'webgpu' }
+      );
+
+      // Generate recommendations based on activities
+      const activityPrompt = activities.map(a => 
+        `I spent ${a.duration} seconds on ${a.application} working on ${a.title}`
+      ).join('. ');
+
+      const generatedText = await generator(
+        `Given these activities: ${activityPrompt}. Provide 3 productivity recommendations.`, 
+        { max_new_tokens: 100 }
+      );
+
+      const extractedRecommendations = generatedText[0].generated_text
+        .split('.')
+        .filter(rec => rec.trim().length > 10)
+        .slice(0, 3);
+
+      setRecommendations(extractedRecommendations);
+      setStatus('ready');
+    } catch (error) {
+      console.error('LLM generation error:', error);
+      setStatus('error');
+      toast({
+        title: "LLM Error",
+        description: "Could not generate recommendations",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Simulate LLM download/installation process
   const handleInstallModel = () => {
@@ -24,6 +66,7 @@ export function LocalLLM() {
         if (newProgress >= 100) {
           clearInterval(interval);
           setStatus('ready');
+          generateRecommendations();
           toast({
             title: "Model installed successfully",
             description: "Your local LLM is ready to provide insights",
@@ -34,6 +77,12 @@ export function LocalLLM() {
       });
     }, 500);
   };
+
+  useEffect(() => {
+    if (status === 'ready' && activities.length > 0) {
+      generateRecommendations();
+    }
+  }, [status, activities]);
 
   // Determine status message and action button
   const getStatusInfo = () => {
@@ -106,6 +155,18 @@ export function LocalLLM() {
       </CardContent>
       <CardFooter>
         {statusInfo.action}
+        {recommendations.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium mb-2">AI Recommendations:</h4>
+            <ul className="space-y-2">
+              {recommendations.map((rec, idx) => (
+                <li key={idx} className="text-xs text-muted-foreground">
+                  {rec}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </CardFooter>
     </Card>
   );
