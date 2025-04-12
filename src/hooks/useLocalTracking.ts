@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -18,22 +17,23 @@ export function useLocalTracking() {
   const [activities, setActivities] = useState<LocalActivity[]>([]);
   const [isTracking, setIsTracking] = useState(false);
   
-  // Initialize Supabase client with fallback to empty values when environment variables aren't set
-  // This prevents the runtime error when Supabase URL is missing
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+  // Use Vite environment variables with correct prefixing
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
   
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  // Only create Supabase client if both URL and key are present
+  const supabase = supabaseUrl && supabaseKey 
+    ? createClient(supabaseUrl, supabaseKey) 
+    : null;
 
   // Function to fetch activities from Supabase
   const fetchActivities = async () => {
+    if (!supabase) {
+      console.warn('Supabase not configured. Skipping activity fetch.');
+      return;
+    }
+    
     try {
-      // Skip Supabase call if we don't have proper credentials
-      if (supabaseUrl === 'https://your-project.supabase.co') {
-        console.log('Using mock data since Supabase credentials are not configured');
-        return;
-      }
-      
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -51,17 +51,17 @@ export function useLocalTracking() {
 
   // Function to add a new activity
   const addActivity = async (activity: LocalActivity) => {
+    if (!supabase) {
+      console.warn('Supabase not configured. Storing activity locally.');
+      const mockActivity = {
+        ...activity,
+        id: Math.random().toString(36).substring(2, 9)
+      };
+      setActivities(prev => [mockActivity, ...prev]);
+      return;
+    }
+    
     try {
-      // Store locally when no Supabase connection
-      if (supabaseUrl === 'https://your-project.supabase.co') {
-        const mockActivity = {
-          ...activity,
-          id: Math.random().toString(36).substring(2, 9)
-        };
-        setActivities(prev => [mockActivity, ...prev]);
-        return;
-      }
-      
       const { data, error } = await supabase
         .from('activities')
         .insert(activity)
@@ -74,7 +74,7 @@ export function useLocalTracking() {
       }
     } catch (error) {
       console.error('Error adding activity:', error);
-      // Still add locally even if Supabase fails
+      // Fallback to local storage if Supabase fails
       const mockActivity = {
         ...activity,
         id: Math.random().toString(36).substring(2, 9)
