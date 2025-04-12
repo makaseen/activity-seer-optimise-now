@@ -1,10 +1,12 @@
+
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Brain, DownloadCloud } from 'lucide-react';
+import { Brain, DownloadCloud, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocalTracking } from '@/hooks/useLocalTracking';
 import { pipeline } from '@huggingface/transformers';
+import { Link } from 'react-router-dom';
 
 type LlmStatus = 'not-installed' | 'installing' | 'ready' | 'loading' | 'error';
 
@@ -92,6 +94,14 @@ export function LocalLLM() {
         return newProgress;
       });
     }, 500);
+  };
+
+  // Handle the connect to Supabase action
+  const handleConnectSupabase = () => {
+    toast({
+      title: "Supabase Connection",
+      description: "To connect to Supabase, click the green Supabase button in the top right of the interface.",
+    });
   };
 
   useEffect(() => {
@@ -183,6 +193,22 @@ export function LocalLLM() {
             </ul>
           </div>
         )}
+        
+        {/* Added a Supabase connection section */}
+        <div className="w-full mt-4 pt-4 border-t">
+          <h4 className="text-sm font-medium mb-2">Enhance with Supabase</h4>
+          <p className="text-xs text-muted-foreground mb-3">
+            Connect to Supabase to unlock cloud storage and advanced AI features.
+          </p>
+          <Button 
+            variant="outline" 
+            className="w-full gap-2"
+            onClick={handleConnectSupabase}
+          >
+            <ExternalLink className="h-4 w-4" />
+            Connect to Supabase
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );
