@@ -2,16 +2,19 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Brain, DownloadCloud, ExternalLink } from 'lucide-react';
+import { Brain, DownloadCloud, ExternalLink, Activity } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocalTracking } from '@/hooks/useLocalTracking';
 import { pipeline } from '@huggingface/transformers';
 import { Link } from 'react-router-dom';
 
 type LlmStatus = 'not-installed' | 'installing' | 'ready' | 'loading' | 'error';
+type LlmModel = 'microsoft/DialoGPT-small' | 'distilbert/distilbert-base-uncased' | 'microsoft/phi-2';
 
 export function LocalLLM() {
   const [status, setStatus] = useState<LlmStatus>('not-installed');
+  const [selectedModel, setSelectedModel] = useState<LlmModel>('microsoft/DialoGPT-small');
+  const [modelSize, setModelSize] = useState('800MB');
   const [progressPercent, setProgressPercent] = useState(0);
   const [recommendations, setRecommendations] = useState<string[]>([]);
   const { activities } = useLocalTracking();
@@ -21,10 +24,16 @@ export function LocalLLM() {
     try {
       setStatus('loading');
       
+      // Display toast to inform user that generation has started
+      toast({
+        title: "Generating Recommendations",
+        description: "Local LLM is analyzing your activity data",
+      });
+      
       // Use a small, browser-friendly model for text generation
       const generator = await pipeline(
         'text-generation', 
-        'microsoft/DialoGPT-small',
+        selectedModel,
         { device: 'webgpu' }
       );
 
@@ -61,12 +70,17 @@ export function LocalLLM() {
 
       setRecommendations(extractedRecommendations);
       setStatus('ready');
+      
+      toast({
+        title: "Recommendations Ready",
+        description: "Your activity data has been analyzed",
+      });
     } catch (error) {
       console.error('LLM generation error:', error);
       setStatus('error');
       toast({
         title: "LLM Error",
-        description: "Could not generate recommendations",
+        description: "Could not generate recommendations. Try reinstalling the model.",
         variant: "destructive"
       });
     }
@@ -87,7 +101,7 @@ export function LocalLLM() {
           generateRecommendations();
           toast({
             title: "Model installed successfully",
-            description: "Your local LLM is ready to provide insights",
+            description: `${selectedModel} is now ready to provide insights`,
           });
           return 100;
         }
@@ -96,12 +110,43 @@ export function LocalLLM() {
     }, 500);
   };
 
+  // Handle model selection
+  const handleSelectModel = (model: LlmModel) => {
+    setSelectedModel(model);
+    
+    // Set model size based on selection
+    switch(model) {
+      case 'microsoft/DialoGPT-small':
+        setModelSize('800MB');
+        break;
+      case 'distilbert/distilbert-base-uncased':
+        setModelSize('1.2GB');
+        break;
+      case 'microsoft/phi-2':
+        setModelSize('2.4GB');
+        break;
+    }
+    
+    // If model is already installed, reset to not installed
+    if (status === 'ready' || status === 'error') {
+      setStatus('not-installed');
+      setRecommendations([]);
+    }
+  };
+
   // Handle the connect to Supabase action
   const handleConnectSupabase = () => {
     toast({
       title: "Supabase Connection",
       description: "To connect to Supabase, click the green Supabase button in the top right of the interface.",
     });
+  };
+
+  // Handle refresh recommendations
+  const handleRefreshRecommendations = () => {
+    if (status === 'ready') {
+      generateRecommendations();
+    }
   };
 
   useEffect(() => {
@@ -117,12 +162,44 @@ export function LocalLLM() {
         return {
           title: "Local LLM Not Installed",
           description: "Install a lightweight model to analyze your activity data privately on your device.",
-          action: <Button onClick={handleInstallModel} className="gap-2"><DownloadCloud className="h-4 w-4" /> Install Model (800MB)</Button>
+          action: (
+            <div className="space-y-4 w-full">
+              <div className="grid grid-cols-3 gap-2">
+                <Button 
+                  size="sm" 
+                  variant={selectedModel === 'microsoft/DialoGPT-small' ? 'default' : 'outline'} 
+                  onClick={() => handleSelectModel('microsoft/DialoGPT-small')}
+                  className="w-full"
+                >
+                  Small
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={selectedModel === 'distilbert/distilbert-base-uncased' ? 'default' : 'outline'} 
+                  onClick={() => handleSelectModel('distilbert/distilbert-base-uncased')}
+                  className="w-full"
+                >
+                  Medium
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={selectedModel === 'microsoft/phi-2' ? 'default' : 'outline'} 
+                  onClick={() => handleSelectModel('microsoft/phi-2')}
+                  className="w-full"
+                >
+                  Large
+                </Button>
+              </div>
+              <Button onClick={handleInstallModel} className="w-full gap-2">
+                <DownloadCloud className="h-4 w-4" /> Install Model ({modelSize})
+              </Button>
+            </div>
+          )
         };
       case 'installing':
         return {
           title: "Installing Local LLM",
-          description: "Downloading and setting up the model...",
+          description: `Downloading and setting up ${selectedModel}...`,
           action: (
             <div className="w-full space-y-2">
               <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
@@ -139,13 +216,20 @@ export function LocalLLM() {
         return {
           title: "Local LLM Ready",
           description: "Your data is being analyzed privately on your device.",
-          action: <div className="text-sm text-muted-foreground">Model is actively analyzing your activity data</div>
+          action: (
+            <div className="w-full">
+              <div className="text-sm text-muted-foreground mb-2">Model is actively analyzing your activity data</div>
+              <Button variant="outline" size="sm" onClick={handleRefreshRecommendations} className="w-full gap-2">
+                <Activity className="h-4 w-4" /> Refresh Recommendations
+              </Button>
+            </div>
+          )
         };
       case 'loading':
         return {
           title: "LLM Processing",
           description: "Analyzing your data...",
-          action: <div className="animate-pulse-subtle text-muted-foreground">Processing data...</div>
+          action: <div className="animate-pulse text-sm text-muted-foreground">Processing data...</div>
         };
       case 'error':
         return {
@@ -194,7 +278,7 @@ export function LocalLLM() {
           </div>
         )}
         
-        {/* Added a Supabase connection section */}
+        {/* Supabase connection section */}
         <div className="w-full mt-4 pt-4 border-t">
           <h4 className="text-sm font-medium mb-2">Enhance with Supabase</h4>
           <p className="text-xs text-muted-foreground mb-3">
