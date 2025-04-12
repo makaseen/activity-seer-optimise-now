@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,15 @@ export function LocalLLM() {
         { max_new_tokens: 100 }
       );
 
-      const extractedRecommendations = generatedText[0].generated_text
+      // Handle different response formats from the transformer model
+      let extractedText: string;
+      if (Array.isArray(generatedText)) {
+        extractedText = generatedText[0].generated_text || generatedText[0].text || '';
+      } else {
+        extractedText = generatedText.text || '';
+      }
+
+      const extractedRecommendations = extractedText
         .split('.')
         .filter(rec => rec.trim().length > 10)
         .slice(0, 3);
@@ -153,10 +162,10 @@ export function LocalLLM() {
           <p className="text-sm text-muted-foreground">{statusInfo.description}</p>
         </div>
       </CardContent>
-      <CardFooter>
-        {statusInfo.action}
+      <CardFooter className="flex flex-col items-stretch">
+        <div className="w-full">{statusInfo.action}</div>
         {recommendations.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-4 w-full">
             <h4 className="text-sm font-medium mb-2">AI Recommendations:</h4>
             <ul className="space-y-2">
               {recommendations.map((rec, idx) => (

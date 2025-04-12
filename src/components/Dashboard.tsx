@@ -5,6 +5,7 @@ import { CategoryBreakdown } from '@/components/CategoryBreakdown';
 import { RecommendationPanel } from '@/components/RecommendationPanel';
 import { ActivityTracker } from '@/components/ActivityTracker';
 import { LocalLLM } from '@/components/LocalLLM';
+import { ActivityManager } from '@/components/ActivityManager';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Brain, Clock, Laptop, Zap } from 'lucide-react';
 
@@ -110,6 +111,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <ActivityTracker activities={activities} isLoading={isLoading} formatDuration={formatDuration} />
         <RecommendationPanel recommendations={recommendations} isLoading={isLoading} />
+        <ActivityManager />
         <LocalLLM />
       </div>
     </div>
