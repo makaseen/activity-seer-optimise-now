@@ -17,14 +17,23 @@ export interface LocalActivity {
 export function useLocalTracking() {
   const [activities, setActivities] = useState<LocalActivity[]>([]);
   const [isTracking, setIsTracking] = useState(false);
-  const supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL!, 
-    import.meta.env.VITE_SUPABASE_ANON_KEY!
-  );
+  
+  // Initialize Supabase client with fallback to empty values when environment variables aren't set
+  // This prevents the runtime error when Supabase URL is missing
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+  
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   // Function to fetch activities from Supabase
   const fetchActivities = async () => {
     try {
+      // Skip Supabase call if we don't have proper credentials
+      if (supabaseUrl === 'https://your-project.supabase.co') {
+        console.log('Using mock data since Supabase credentials are not configured');
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('activities')
         .select('*')
@@ -43,6 +52,16 @@ export function useLocalTracking() {
   // Function to add a new activity
   const addActivity = async (activity: LocalActivity) => {
     try {
+      // Store locally when no Supabase connection
+      if (supabaseUrl === 'https://your-project.supabase.co') {
+        const mockActivity = {
+          ...activity,
+          id: Math.random().toString(36).substring(2, 9)
+        };
+        setActivities(prev => [mockActivity, ...prev]);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('activities')
         .insert(activity)
@@ -55,6 +74,12 @@ export function useLocalTracking() {
       }
     } catch (error) {
       console.error('Error adding activity:', error);
+      // Still add locally even if Supabase fails
+      const mockActivity = {
+        ...activity,
+        id: Math.random().toString(36).substring(2, 9)
+      };
+      setActivities(prev => [mockActivity, ...prev]);
     }
   };
 

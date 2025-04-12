@@ -3,9 +3,36 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLocalTracking } from '@/hooks/useLocalTracking';
 import { Cpu, PlayCircle, StopCircle } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from '@/components/ui/use-toast';
 
 export function ActivityManager() {
   const { isTracking, startTracking, stopTracking } = useLocalTracking();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleStartTracking = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      startTracking();
+      setIsLoading(false);
+      toast({
+        title: "Tracking Started",
+        description: "ActivitySeer is now monitoring your computer activity.",
+      });
+    }, 500);
+  };
+
+  const handleStopTracking = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      stopTracking();
+      setIsLoading(false);
+      toast({
+        title: "Tracking Paused",
+        description: "ActivitySeer has stopped monitoring your activity.",
+      });
+    }, 500);
+  };
 
   return (
     <Card className="col-span-1">
@@ -41,19 +68,21 @@ export function ActivityManager() {
           <Button 
             variant="outline" 
             className="w-full gap-2 text-red-600 border-red-200 hover:bg-red-50"
-            onClick={stopTracking}
+            onClick={handleStopTracking}
+            disabled={isLoading}
           >
             <StopCircle className="h-4 w-4" />
-            Pause Tracking
+            {isLoading ? "Processing..." : "Pause Tracking"}
           </Button>
         ) : (
           <Button 
             variant="outline"
             className="w-full gap-2 text-green-600 border-green-200 hover:bg-green-50"
-            onClick={startTracking}
+            onClick={handleStartTracking}
+            disabled={isLoading}
           >
             <PlayCircle className="h-4 w-4" />
-            Start Tracking
+            {isLoading ? "Processing..." : "Start Tracking"}
           </Button>
         )}
       </CardFooter>
