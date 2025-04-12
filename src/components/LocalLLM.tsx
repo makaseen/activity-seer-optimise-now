@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,11 +37,19 @@ export function LocalLLM() {
       );
 
       // Handle different response formats from the transformer model
-      let extractedText: string;
+      let extractedText = '';
       if (Array.isArray(generatedText)) {
-        extractedText = generatedText[0].generated_text || generatedText[0].text || '';
-      } else {
-        extractedText = generatedText.text || '';
+        // Access the generated text safely with optional chaining
+        const firstResult = generatedText[0];
+        if (typeof firstResult === 'object' && firstResult !== null) {
+          extractedText = 
+            // Try different possible property names based on model output format
+            (firstResult as any).generated_text || 
+            (firstResult as any).text || 
+            '';
+        }
+      } else if (typeof generatedText === 'object' && generatedText !== null) {
+        extractedText = (generatedText as any).text || '';
       }
 
       const extractedRecommendations = extractedText
